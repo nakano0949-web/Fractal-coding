@@ -49,7 +49,7 @@ function sample(image, x, y) {
     const iy = Math.floor(y);
     if (ix < 0 || iy < 0 || ix >= image.width || iy >= image.height) return 0;
     const idx = (iy * image.width + ix) * 4;
-    return image.data[idx]; // R成分だけ使う（グレースケール扱い）
+    return image.data[idx];
 }
 
 //------------------------------------------------------------
@@ -62,20 +62,13 @@ function computePhiSigma(image, patch, sigma) {
     for (let j = 0; j < h; j++) {
         for (let i = 0; i < w; i++) {
 
-            // range patch の座標
             const xr = x + i;
             const yr = y + j;
 
-            // 複素数 z = (xr, yr)
             const z = { re: xr, im: yr };
-
-            // Möbius IFS を適用
             const z2 = ApplySigma2D(sigma, z);
 
-            // domain の座標としてサンプリング
-            const val = sample(image, z2.re, z2.im);
-
-            phi[j * w + i] = val;
+            phi[j * w + i] = sample(image, z2.re, z2.im);
         }
     }
     return phi;
@@ -124,14 +117,12 @@ function extractPatch(image, patch) {
 //------------------------------------------------------------
 function enumerateSigma(Lmax) {
     const list = [];
-
     function dfs(prefix) {
         if (prefix.length > 0) list.push(prefix.slice());
         if (prefix.length === Lmax) return;
         dfs(prefix.concat(+1));
         dfs(prefix.concat(-1));
     }
-
     dfs([]);
     return list;
 }
@@ -166,7 +157,6 @@ function FractalEncode2D(image, W, Lmax, thr) {
             }
         }
 
-        // 閾値以下なら葉ノード
         if (bestErr < thr || w <= W || h <= W) {
             encoded.push({
                 position: patch,
@@ -177,7 +167,6 @@ function FractalEncode2D(image, W, Lmax, thr) {
             return;
         }
 
-        // 4分割
         const w2 = Math.floor(w / 2);
         const h2 = Math.floor(h / 2);
 
@@ -189,4 +178,153 @@ function FractalEncode2D(image, W, Lmax, thr) {
 
     processPatch(0, 0, image.width, image.height);
     return encoded;
-           }
+}
+
+//------------------------------------------------------------
+// Reconstruction（本物）
+//------------------------------------------------------------
+function drawReconstruction(c, encoded, image) {
+    const w = image.width;
+    const h = image.height;
+
+    const out = c.ctx.createImageData(w, h);
+    const data = out.data;
+
+    for (let block of encoded) {
+        const { x, y, w: bw, h: bh } = block.position;
+        const sigma = block.sigma;
+        const alpha = block.alpha;
+
+        const phi = computePhiSigma(image, block.position, sigma);
+
+        for (let j = 0; j < bh; j++) {
+            for (let i = 0; i < bw; i++) {
+
+                const idx = ( (y+j) * w + (x+i) ) * 4;
+                const v = Math.max(0, Math.min(255, alpha * phi[j*bw + i]));
+
+                data[idx]   = v;
+                data[idx+1] = v;
+                data[idx+2] = v;
+                data[idx+3] = 255;
+            }
+        }
+    }
+
+    c.canvas.width  = w;
+    c.canvas.height = h;
+    c.ctx.putImageData(out, 0, 0);
+}
+
+//------------------------------------------------------------
+// σ-map（誤差正規化）
+//------------------------------------------------------------
+function drawSigmaMap(c, encoded, Lmax) {
+    clearCanvas(c);
+
+    const Emax = Math.max(...encoded.map(e => e.error));
+    const Emin = Math.min(...encoded.map(e => e.error));
+
+    for (let p of encoded) {
+        const E = (p.error - Emin) / (Emax - Emin + 1e-9);
+        const color = SigmaColor(p.sigma, Lmax, E, 1);
+
+        c.ctx.fillStyle = color;
+        c.ctx.fillRect(p.position.x, p.position.y, p.position.w, p.position.h);
+    }
+}
+
+//------------------------------------------------------------
+// Partition（そのまま）
+//------------------------------------------------------------
+function drawPartition(c, encoded) {
+    clearCanvas(c);
+    c.ctx.strokeStyle = "white";
+    for (let p of encoded) {
+        c.ctx.strokeRect(p.position.x, p.position.y, p.position.w, p.position.h);
+    }
+}
+
+//------------------------------------------------------------
+// Original
+//------------------------------------------------------------
+function drawOriginal(c, image) {
+    clearCanvas(c);
+    c.ctx.putImageData(image, 0, 0);
+}
+
+//------------------------------------------------------------
+// Limit set（σ と同期）
+//------------------------------------------------------------
+function drawLimitSet(c, Lmax) {
+    clearCanvas(c);
+
+    const pts = GenerateLimitSetPoints_Enumerate(Lmax, 0.0);
+    if (pts.length === 0) return;
+
+    const xs = pts.map(p => p.xσ);
+    const xmin = Math.min(...xs);
+    const xmax = Math.max(...xs);
+
+    for (let p of pts) {
+        const u = (p.xσ - xmin) / (xmax - xmin + 1e-9);
+        const x = u * c.canvas.width;
+        const y = c.canvas.height / 2;
+
+        const color = SigmaColor(p.sigma, Lmax, 0, 1);
+        const size = Math.max(1, p.sigma.length / Lmax * 3);
+
+        c.ctx.fillStyle = color;
+        c.ctx.fillRect(x, y, size, size);
+    }
+}
+
+//------------------------------------------------------------
+// Main
+//------------------------------------------------------------
+window.onload = () => {
+
+    const canvasOriginal   = initCanvas("canvas-original");
+    const canvasPartition  = initCanvas("canvas-partition");
+    const canvasSigma      = initCanvas("canvas-sigma");
+    const canvasRecon      = initCanvas("canvas-recon");
+    const canvasLimit      = initCanvas("canvas-limitset");
+
+    canvasLimit.canvas.width  = 600;
+    canvasLimit.canvas.height = 200;
+
+    let image = null;
+
+    document.getElementById("imageLoader").onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        image = await loadImage(file);
+        updateAll();
+    };
+
+    document.getElementById("patchSize").oninput = updateAll;
+    document.getElementById("lmax").oninput = updateAll;
+    document.getElementById("threshold").oninput = updateAll;
+    document.getElementById("sigmaMode").onchange = updateAll;
+
+    function updateAll() {
+        if (!image) return;
+
+        const W     = getPatchSize();
+        const Lmax  = getLmax();
+        let thr     = getThreshold();
+
+        resizeCanvasToImage(canvasOriginal, image);
+        resizeCanvasToImage(canvasPartition, image);
+        resizeCanvasToImage(canvasSigma, image);
+        resizeCanvasToImage(canvasRecon, image);
+
+        const encoded = FractalEncode2D(image, W, Lmax, thr);
+
+        drawOriginal(canvasOriginal, image);
+        drawPartition(canvasPartition, encoded);
+        drawSigmaMap(canvasSigma, encoded, Lmax);
+        drawReconstruction(canvasRecon, encoded, image);
+        drawLimitSet(canvasLimit, Lmax);
+    }
+};
