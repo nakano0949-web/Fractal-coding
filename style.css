@@ -1,0 +1,36 @@
+body {
+  background: #111;
+  color: #EEE;
+  font-family: monospace;
+}
+
+#container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 8px;
+  padding: 8px;
+}
+
+.panel {
+  background: #000;
+  border: 1px solid #444;
+  height: 256px;
+}
+
+.panel-wide {
+  grid-column: 1 / span 2;
+  background: #000;
+  border: 1px solid #444;
+  height: 200px;
+}
+
+#controls {
+  position: fixed;
+  right: 10px;
+  top: 10px;
+  width: 200px;
+  background: #222;
+  padding: 10px;
+  border: 1px solid #444;
+}
