@@ -26,10 +26,10 @@ If a region can be approximated well by an IFS-transformed basis patch, it remai
 For each patch, the system searches over ±1 sequences up to a maximum length.  
 Each sequence σ corresponds to a Möbius transformation:
 
-\[
+\(
 M_+(x)=\frac{x+2}{x+1},\quad
 M_-(x)=\frac{x}{x-1}
-\]
+\)
 
 The best σ is chosen by minimizing reconstruction error.
 
