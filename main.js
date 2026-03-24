@@ -190,3 +190,35 @@ function FractalEncode2D(image, W, Lmax, thr) {
     processPatch(0, 0, image.width, image.height);
     return encoded;
     }
+//------------------------------------------------------------
+// Limit set generation
+//------------------------------------------------------------
+function M_plus(x)  { return (x + 2) / (x + 1); }
+function M_minus(x) { return x / (x - 1); }
+
+function ApplySigmaToX0(sigma, x0) {
+    let x = x0;
+    for (let s of sigma) {
+        x = (s === +1) ? M_plus(x) : M_minus(x);
+    }
+    return x;
+}
+
+function GenerateLimitSetPoints_Enumerate(Lmax, x0) {
+    const points = [];
+
+    function dfs(prefix) {
+        if (prefix.length > Lmax) return;
+
+        if (prefix.length > 0) {
+            const xσ = ApplySigmaToX0(prefix, x0);
+            points.push({ xσ, sigma: prefix.slice() });
+        }
+
+        dfs(prefix.concat(+1));
+        dfs(prefix.concat(-1));
+    }
+
+    dfs([]);
+    return points;
+}
