@@ -18,18 +18,24 @@ function drawPoint(c, x, y, color, size) {
 }
 
 //------------------------------------------------------------
-// Image loading
+// Image loading (スマホ用に縮小)
 //------------------------------------------------------------
 function loadImage(file) {
     return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
+
+            const maxSize = 800;
+            const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+
             const canvas = document.createElement("canvas");
-            canvas.width = img.width;
-            canvas.height = img.height;
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+
             const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0);
-            resolve(ctx.getImageData(0, 0, img.width, img.height));
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            resolve(ctx.getImageData(0, 0, canvas.width, canvas.height));
         };
         img.src = URL.createObjectURL(file);
     });
@@ -74,9 +80,7 @@ function HSV_to_RGB(h, s, v) {
 // σ → Color
 //------------------------------------------------------------
 function SigmaColor(sigma, Lmax, E, Emax) {
-    if (sigma.length === 0) {
-        return "rgb(128,128,128)";
-    }
+    if (sigma.length === 0) return "rgb(128,128,128)";
 
     let bin = 0;
     for (let k = 0; k < sigma.length; k++) {
@@ -156,18 +160,17 @@ function drawLimitSet(c, Lmax) {
 }
 
 //------------------------------------------------------------
-// Minimal fractal encoder (placeholder, but consistent)
+// Minimal fractal encoder (placeholder)
 //------------------------------------------------------------
 function FractalEncode2D(image, W, Lmax, thr) {
-    // For now: tile the image into W×W patches, assign dummy σ and error
     const patches = [];
     for (let y = 0; y < image.height; y += W) {
         for (let x = 0; x < image.width; x += W) {
             const w = Math.min(W, image.width - x);
             const h = Math.min(W, image.height - y);
-            const sigma = [+1, -1, +1]; // placeholder
+            const sigma = [+1, -1, +1];
             const alpha = 1.0;
-            const error = Math.random(); // placeholder
+            const error = Math.random();
             patches.push({
                 position: { x, y, w, h },
                 sigma,
@@ -208,7 +211,6 @@ function drawSigmaMap(c, encoded, Lmax) {
 
 function drawReconstruction(c, encoded, image) {
     clearCanvas(c);
-    // Placeholder: flat gray
     c.ctx.fillStyle = "#444";
     c.ctx.fillRect(0, 0, image.width, image.height);
 }
@@ -231,6 +233,10 @@ window.onload = () => {
     const canvasSigma      = initCanvas("canvas-sigma");
     const canvasRecon      = initCanvas("canvas-recon");
     const canvasLimit      = initCanvas("canvas-limitset");
+
+    // limit set は固定サイズ
+    canvasLimit.canvas.width  = 600;
+    canvasLimit.canvas.height = 200;
 
     let image = null;
 
@@ -257,10 +263,6 @@ window.onload = () => {
         resizeCanvasToImage(canvasPartition, image);
         resizeCanvasToImage(canvasSigma, image);
         resizeCanvasToImage(canvasRecon, image);
-
-        // limit set canvas: fixed size
-        canvasLimit.canvas.width  = canvasLimit.canvas.width;
-        canvasLimit.canvas.height = canvasLimit.canvas.height;
 
         const encoded = FractalEncode2D(image, W, Lmax, thr);
 
