@@ -189,4 +189,4 @@ function FractalEncode2D(image, W, Lmax, thr) {
 
     processPatch(0, 0, image.width, image.height);
     return encoded;
-            }
+    }
