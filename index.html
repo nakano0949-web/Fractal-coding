@@ -1,0 +1,34 @@
+<html>
+<head>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="container">
+
+    <div id="panel-original" class="panel"></div>
+    <div id="panel-partition" class="panel"></div>
+
+    <div id="panel-sigma" class="panel"></div>
+    <div id="panel-recon" class="panel"></div>
+
+    <div id="panel-limitset" class="panel-wide"></div>
+
+    <div id="controls">
+      <input type="file" id="imageLoader">
+      <label>Patch Size</label><input type="range" id="patchSize">
+      <label>Lmax</label><input type="range" id="lmax">
+      <label>Error Threshold</label><input type="range" id="threshold">
+      <label>σ-map Mode</label>
+      <select id="sigmaMode">
+        <option value="color">Color</option>
+        <option value="length">Length</option>
+        <option value="freq">Frequency</option>
+      </select>
+    </div>
+
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
