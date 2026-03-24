@@ -1,8 +1,8 @@
 //------------------------------------------------------------
 // Canvas helpers
 //------------------------------------------------------------
-function initCanvas(id) {
-    const canvas = document.getElementById(id);
+function initCanvas(canvasId) {
+    const canvas = document.getElementById(canvasId);
     const ctx = canvas.getContext("2d");
     return { canvas, ctx };
 }
@@ -74,18 +74,17 @@ function HSV_to_RGB(h, s, v) {
 // σ → Color
 //------------------------------------------------------------
 function SigmaColor(sigma, Lmax, E, Emax) {
-    // Hue
+    if (sigma.length === 0) {
+        return "rgb(128,128,128)";
+    }
+
     let bin = 0;
     for (let k = 0; k < sigma.length; k++) {
         bin = bin * 2 + (sigma[k] === +1 ? 1 : 0);
     }
     const H = bin / Math.pow(2, sigma.length);
-
-    // Saturation
     const S = sigma.length / Lmax;
-
-    // Value
-    const V = 1 - (E / Emax);
+    const V = 1 - (Emax > 0 ? (E / Emax) : 0);
 
     return HSV_to_RGB(H, S, V);
 }
@@ -127,6 +126,7 @@ function GenerateLimitSetPoints_Enumerate(Lmax, x0) {
 }
 
 function normalize(x, xmin, xmax) {
+    if (xmax === xmin) return 0.5;
     return (x - xmin) / (xmax - xmin);
 }
 
@@ -137,6 +137,8 @@ function drawLimitSet(c, Lmax) {
     clearCanvas(c);
 
     const pts = GenerateLimitSetPoints_Enumerate(Lmax, 0.0);
+    if (pts.length === 0) return;
+
     const xs = pts.map(p => p.xσ);
     const xmin = Math.min(...xs);
     const xmax = Math.max(...xs);
@@ -147,28 +149,38 @@ function drawLimitSet(c, Lmax) {
         const y = c.canvas.height / 2;
 
         const color = SigmaColor(p.sigma, Lmax, 0, 1);
-        const size = Math.max(1, p.sigma.length / Lmax * 4);
+        const size = Math.max(1, p.sigma.length / Lmax * 3);
 
         drawPoint(c, x, y, color, size);
     }
 }
 
 //------------------------------------------------------------
-// Minimal fractal encoder (dummy version)
+// Minimal fractal encoder (placeholder, but consistent)
 //------------------------------------------------------------
 function FractalEncode2D(image, W, Lmax, thr) {
-    // For now: return a single patch covering the whole image
-    // (You can replace this with the full quad-tree + sigma search later)
-    return [{
-        position: { x: 0, y: 0, w: image.width, h: image.height },
-        sigma: [+1, -1, +1], // dummy
-        alpha: 1.0,
-        error: 0.1
-    }];
+    // For now: tile the image into W×W patches, assign dummy σ and error
+    const patches = [];
+    for (let y = 0; y < image.height; y += W) {
+        for (let x = 0; x < image.width; x += W) {
+            const w = Math.min(W, image.width - x);
+            const h = Math.min(W, image.height - y);
+            const sigma = [+1, -1, +1]; // placeholder
+            const alpha = 1.0;
+            const error = Math.random(); // placeholder
+            patches.push({
+                position: { x, y, w, h },
+                sigma,
+                alpha,
+                error
+            });
+        }
+    }
+    return patches;
 }
 
 //------------------------------------------------------------
-// Draw panels (minimal placeholders)
+// Draw panels
 //------------------------------------------------------------
 function drawOriginal(c, image) {
     clearCanvas(c);
@@ -185,7 +197,7 @@ function drawPartition(c, encoded) {
 
 function drawSigmaMap(c, encoded, Lmax) {
     clearCanvas(c);
-    const Emax = Math.max(...encoded.map(e => e.error));
+    const Emax = Math.max(...encoded.map(e => e.error), 0.0001);
 
     for (let p of encoded) {
         const color = SigmaColor(p.sigma, Lmax, p.error, Emax);
@@ -194,11 +206,19 @@ function drawSigmaMap(c, encoded, Lmax) {
     }
 }
 
-function drawReconstruction(c, encoded, size) {
+function drawReconstruction(c, encoded, image) {
     clearCanvas(c);
-    // Placeholder: fill with gray
+    // Placeholder: flat gray
     c.ctx.fillStyle = "#444";
-    c.ctx.fillRect(0, 0, size.width, size.height);
+    c.ctx.fillRect(0, 0, image.width, image.height);
+}
+
+//------------------------------------------------------------
+// Resize canvas to image
+//------------------------------------------------------------
+function resizeCanvasToImage(c, image) {
+    c.canvas.width  = image.width;
+    c.canvas.height = image.height;
 }
 
 //------------------------------------------------------------
@@ -206,16 +226,18 @@ function drawReconstruction(c, encoded, size) {
 //------------------------------------------------------------
 window.onload = () => {
 
-    const canvasOriginal   = initCanvas("panel-original");
-    const canvasPartition  = initCanvas("panel-partition");
-    const canvasSigma      = initCanvas("panel-sigma");
-    const canvasRecon      = initCanvas("panel-recon");
-    const canvasLimit      = initCanvas("panel-limitset");
+    const canvasOriginal   = initCanvas("canvas-original");
+    const canvasPartition  = initCanvas("canvas-partition");
+    const canvasSigma      = initCanvas("canvas-sigma");
+    const canvasRecon      = initCanvas("canvas-recon");
+    const canvasLimit      = initCanvas("canvas-limitset");
 
     let image = null;
 
     document.getElementById("imageLoader").onchange = async (e) => {
-        image = await loadImage(e.target.files[0]);
+        const file = e.target.files[0];
+        if (!file) return;
+        image = await loadImage(file);
         updateAll();
     };
 
@@ -230,6 +252,15 @@ window.onload = () => {
         const W     = getPatchSize();
         const Lmax  = getLmax();
         const thr   = getThreshold();
+
+        resizeCanvasToImage(canvasOriginal, image);
+        resizeCanvasToImage(canvasPartition, image);
+        resizeCanvasToImage(canvasSigma, image);
+        resizeCanvasToImage(canvasRecon, image);
+
+        // limit set canvas: fixed size
+        canvasLimit.canvas.width  = canvasLimit.canvas.width;
+        canvasLimit.canvas.height = canvasLimit.canvas.height;
 
         const encoded = FractalEncode2D(image, W, Lmax, thr);
 
