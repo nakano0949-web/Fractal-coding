@@ -1,30 +1,66 @@
+<!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
+  <title>Fractal Encoding Demo</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <div id="container">
 
-    <div id="panel-original" class="panel"></div>
-    <div id="panel-partition" class="panel"></div>
+    <div id="panel-original" class="panel">
+      <canvas id="canvas-original"></canvas>
+      <div class="label">Original</div>
+    </div>
 
-    <div id="panel-sigma" class="panel"></div>
-    <div id="panel-recon" class="panel"></div>
+    <div id="panel-partition" class="panel">
+      <canvas id="canvas-partition"></canvas>
+      <div class="label">Partition</div>
+    </div>
 
-    <div id="panel-limitset" class="panel-wide"></div>
+    <div id="panel-sigma" class="panel">
+      <canvas id="canvas-sigma"></canvas>
+      <div class="label">σ-map</div>
+    </div>
+
+    <div id="panel-recon" class="panel">
+      <canvas id="canvas-recon"></canvas>
+      <div class="label">Reconstruction</div>
+    </div>
+
+    <div id="panel-limitset" class="panel-wide">
+      <canvas id="canvas-limitset"></canvas>
+      <div class="label">Limit set</div>
+    </div>
 
     <div id="controls">
-      <input type="file" id="imageLoader">
-      <label>Patch Size</label><input type="range" id="patchSize">
-      <label>Lmax</label><input type="range" id="lmax">
-      <label>Error Threshold</label><input type="range" id="threshold">
-      <label>σ-map Mode</label>
-      <select id="sigmaMode">
-        <option value="color">Color</option>
-        <option value="length">Length</option>
-        <option value="freq">Frequency</option>
-      </select>
+      <div class="ctrl-row">
+        <label>Image</label>
+        <input type="file" id="imageLoader" accept="image/*">
+      </div>
+
+      <div class="ctrl-row">
+        <label>Patch Size</label>
+        <input type="range" id="patchSize" min="8" max="128" value="64">
+      </div>
+
+      <div class="ctrl-row">
+        <label>Lmax</label>
+        <input type="range" id="lmax" min="1" max="8" value="4">
+      </div>
+
+      <div class="ctrl-row">
+        <label>Error Threshold</label>
+        <input type="range" id="threshold" min="0" max="100" value="10">
+      </div>
+
+      <div class="ctrl-row">
+        <label>σ-map Mode</label>
+        <select id="sigmaMode">
+          <option value="default">Default</option>
+        </select>
+      </div>
     </div>
 
   </div>
